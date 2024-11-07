@@ -1,9 +1,7 @@
 /target
 result
-config.toml
 .direnv/
 .envrc
-*.xlsx
 
 
 # Added by cargo

@@ -17,10 +17,9 @@ pub mod request {
 }
 
 pub mod response {
-    use std::collections::HashMap;
-
     use serde::Deserialize;
     use serde_json::Value;
+    use std::collections::HashMap;
 
     #[derive(Clone, Debug, Deserialize)]
     pub struct Login {

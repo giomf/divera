@@ -1,3 +1,4 @@
+pub mod v1;
 pub mod v2;
 
 use reqwest::{
@@ -5,6 +6,7 @@ use reqwest::{
     Error as ReqwestError, Url,
 };
 use serde::{de::DeserializeOwned, Deserialize};
+use serde_json::{Error as SerdeJsonError, Value};
 use std::fmt::Debug;
 use thiserror::Error as ThisError;
 
@@ -15,6 +17,8 @@ const ACCESS_KEY_HEADER: &str = "accesskey";
 pub enum Error {
     #[error("Request error")]
     Request(#[from] ReqwestError),
+    #[error("Parsing error")]
+    Parsing(#[from] SerdeJsonError),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -34,7 +38,12 @@ fn send(request: RequestBuilder) -> Result<Response, Error> {
 }
 
 fn handle_response<T: DeserializeOwned + Debug>(response: Response) -> Result<T, Error> {
-    let response: SuccessResponse<T> = response.json()?;
+    let response = response.text()?;
+
+    let response: Value = serde_json::from_str(&response)?;
+    log::debug!("Raw response body: {:#?}", response);
+    let response: SuccessResponse<T> = serde_json::from_value(response)?;
+
     log::debug!("Response body: {:#?}", response);
     Ok(response.data)
 }
