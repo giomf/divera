@@ -17,7 +17,7 @@ pub mod request {
 }
 
 pub mod response {
-    use serde::Deserialize;
+    use serde::{Deserialize, Deserializer};
     use serde_json::Value;
     use std::collections::HashMap;
 
@@ -36,6 +36,7 @@ pub mod response {
     pub struct Cluster {
         pub consumer: HashMap<String, Consumer>,
         pub reporttypes: ReportTypes,
+        pub status: HashMap<i64, Status>,
     }
 
     #[derive(Clone, Debug, Deserialize)]
@@ -43,8 +44,25 @@ pub mod response {
         pub firstname: String,
         pub lastname: String,
         pub stdformat_name: String,
-        // groups: ,
-        // qualifications:
+    }
+
+    #[derive(Clone, Debug, Deserialize)]
+    pub struct Status {
+        pub id: i64,
+        pub cluster_id: i64,
+        pub name: String,
+        pub show_on_alarmmonitor: bool,
+        pub show_on_alarm: bool,
+        pub show_on_statusgeber: bool,
+        pub show_on_statusplaner: bool,
+        pub show_on_geofence: bool,
+        pub color_id: i64,
+        pub color_hex: String,
+        pub time: i64,
+        pub sorting: i64,
+        pub hidden: bool,
+        pub phonenumber: String,
+        pub alias: String,
     }
 
     #[derive(Clone, Debug, Deserialize)]
@@ -65,8 +83,36 @@ pub mod response {
 
     #[derive(Clone, Debug, Deserialize)]
     pub struct ReportTypes {
+        #[serde(deserialize_with = "empty_array_as_map")]
         pub items: HashMap<i64, ReportTypesItem>,
         pub sorting: Vec<i32>,
+    }
+
+    // This is neede due to a bug divera returning an emtpy map as empty array
+    fn empty_array_as_map<'de, D>(
+        deserializer: D,
+    ) -> Result<HashMap<i64, ReportTypesItem>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = Value::deserialize(deserializer)?;
+
+        match value {
+            Value::Object(map) => {
+                // Convert JSON object to HashMap
+                let items = map
+                    .into_iter()
+                    .filter_map(|(k, v)| {
+                        k.parse()
+                            .ok()
+                            .and_then(|key| serde_json::from_value(v).ok().map(|val| (key, val)))
+                    })
+                    .collect();
+                Ok(items)
+            }
+            Value::Array(arr) if arr.is_empty() => Ok(HashMap::new()), // Treat empty array as empty map
+            _ => Err(serde::de::Error::custom("Expected a map or an empty array")),
+        }
     }
 
     #[derive(Clone, Debug, Deserialize)]
